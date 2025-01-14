@@ -3,25 +3,58 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Document</title>
   <style>
+    /* 基础样式重置 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+    }
+
     .container {
       display: flex;
       height: 100vh;
+      height: 100dvh;
+      /* 适配新版移动端浏览器 */
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      left: 0;
     }
 
     .menu {
-      width: 200px;
+      width: 240px;
       border-right: 1px solid #ddd;
       padding: 20px;
+      overflow-y: auto;
+      background: #fff;
+      -webkit-overflow-scrolling: touch;
+      transition: transform 0.3s ease;
+      height: 100%;
+      position: relative;
+      z-index: 101;
     }
 
     .menu-item {
       cursor: pointer;
-      padding: 8px;
+      padding: 16px;
+      /* 增大移动端点击区域 */
       margin: 4px 0;
+      border-radius: 8px;
       transition: all 0.3s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .menu-item.active {
@@ -29,28 +62,129 @@
       color: #1890ff;
     }
 
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 102;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      border: none;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
     .content {
       flex: 1;
       position: relative;
+      background: #fff;
     }
 
-    iframe {
+    #contentFrame {
       width: 100%;
       height: 100%;
       border: none;
-      /* opacity: 1;
-      transition: opacity 0.1s ease; */
+
     }
 
-    iframe.loading {
-      /* opacity: 0; */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 90;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    /* 平板端断点 (768px - 1024px) */
+    @media (max-width: 1024px) {
+      .menu {
+        width: 200px;
+      }
+
+      .menu-item {
+        padding: 14px;
+      }
+    }
+
+    /* 移动端断点 (< 768px) */
+    @media (max-width: 768px) {
+      .menu {
+        position: fixed;
+        z-index: 100;
+        transform: translateX(-100%);
+        width: 280px;
+      }
+
+      .menu.show {
+        transform: translateX(0);
+      }
+
+      .menu-toggle {
+        display: flex;
+      }
+
+      .overlay.show {
+        display: block;
+        opacity: 1;
+      }
+
+      .content {
+        margin-left: 0;
+      }
+    }
+
+    /* 横屏模式优化 */
+    @media (max-height: 480px) and (orientation: landscape) {
+      .menu {
+        padding: 12px;
+      }
+
+      .menu-item {
+        padding: 10px;
+        margin: 2px 0;
+      }
+    }
+
+    /* 深色模式支持 */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #121212;
+        color: #fff;
+      }
+
+      .menu {
+        background: #1f1f1f;
+        border-color: #333;
+      }
+
+      .menu-item.active {
+        background-color: #177ddc22;
+        color: #177ddc;
+      }
+
+      .menu-toggle {
+        background: #1f1f1f;
+        color: #fff;
+      }
     }
   </style>
   <script src="./menu.js"></script>
 </head>
 
 <body>
+  <button class="menu-toggle" id="menuToggle" aria-label="Toggle Menu">☰</button>
   <div class="container">
+    <div class="overlay" id="overlay"></div>
     <div class="menu" id="menu"></div>
     <div class="content">
       <iframe id="contentFrame" src=""></iframe>
@@ -60,6 +194,63 @@
     function renderMenu() {
       const menuEl = document.getElementById('menu');
       const frame = document.getElementById('contentFrame');
+      const menuToggle = document.getElementById('menuToggle');
+      const overlay = document.getElementById('overlay');
+
+      // 菜单切换功能
+      function toggleMenu() {
+        menuEl.classList.toggle('show');
+        overlay.classList.toggle('show');
+      }
+
+      menuToggle.addEventListener('click', toggleMenu);
+      overlay.addEventListener('click', toggleMenu);
+
+      // 触摸手势处理
+      let touchStartX = 0;
+      let touchMoveX = 0;
+      let isDragging = false;
+
+      document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        isDragging = true;
+      }, { passive: true });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        touchMoveX = e.touches[0].clientX;
+        const diff = touchMoveX - touchStartX;
+
+        // 从左边缘向右滑动显示菜单
+        if (touchStartX < 30 && diff > 0) {
+          e.preventDefault();
+          menuEl.classList.add('show');
+          overlay.classList.add('show');
+        }
+
+        // 菜单显示时向左滑动隐藏
+        if (menuEl.classList.contains('show') && diff < 0) {
+          e.preventDefault();
+          menuEl.classList.remove('show');
+          overlay.classList.remove('show');
+        }
+      }, { passive: false });
+
+      document.addEventListener('touchend', () => {
+        isDragging = false;
+      }, { passive: true });
+
+      // 处理窗口大小变化
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (window.innerWidth > 768) {
+            menuEl.classList.remove('show');
+            overlay.classList.remove('show');
+          }
+        }, 100);
+      });
 
       frame.onload = () => {
         frame.classList.remove('loading');
