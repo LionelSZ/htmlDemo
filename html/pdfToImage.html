@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF To Image</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <style>
+    html,
+    body {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-input-wrapper {
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    #pdf-file {
+      display: none;
+    }
+
+    #pdf-image {
+      width: 300px;
+    }
+
+    .custom-file-input {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+
+    .custom-file-input:hover {
+      background-color: #45a049;
+    }
+
+    #pdf-canvas {
+      display: none;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      margin-top: 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>PDF转图片工具</h1>
+    <div class="file-input-wrapper">
+      <label for="pdf-file" class="custom-file-input">选择PDF文件</label>
+      <input type="file" id="pdf-file" accept="application/pdf" />
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('pdf-file').addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (file && file.type === 'application/pdf') {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          // 确保pdf.js能够正确加载
+          const loadingTask = pdfjsLib.getDocument({ data: e.target.result });
+          loadingTask.promise.then(function (pdf) {
+            console.log('PDF loaded');
+            const pages = pdf.numPages
+            console.log(pages)
+            debugger
+            // 假设我们只渲染第一页
+            pdf.getPage(1).then(function (page) {
+              const scale = 2; // 调整缩放比例
+              const viewport = page.getViewport({ scale: scale });
+
+              const canvas = document.createElement('canvas');
+              canvas.id = 'pdf-canvas';
+              const context = canvas.getContext('2d');
+
+              // 设置canvas的宽高
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+
+              // 渲染PDF页面到canvas
+              const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+              };
+
+              page.render(renderContext).promise.then(function () {
+                // 渲染完成后，获取图片的base64编码
+                const imgData = canvas.toDataURL('image/png');
+                console.log(imgData);
+
+                // 移除之前的预览图片（如果存在）
+                const existingImg = document.querySelector('.preview-image');
+                if (existingImg) {
+                  existingImg.remove();
+                }
+
+                // 创建新的预览图片
+                const imgElement = document.createElement('img');
+                imgElement.id = 'pdf-image';
+                imgElement.src = imgData;
+                imgElement.className = 'preview-image';
+                document.querySelector('.container').appendChild(imgElement);
+              });
+            });
+          }).catch(function (error) {
+            console.error('Error loading PDF:', error);
+            alert('加载PDF文件时出错，请重试');
+          });
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        alert('请选择一个PDF文件');
+      }
+    });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Grid Canvas</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+    }
+
+    .input-container {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      display: flex;
+      gap: 10px;
+    }
+
+    input {
+      padding: 8px;
+      font-size: 16px;
+      width: 200px;
+    }
+
+    button {
+      padding: 8px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #ffff00;
+      border: none;
+      border-radius: 4px;
+    }
+
+    button:hover {
+      background: #cccc00;
+    }
+
+    canvas {
+      margin-left: 5px;
+      display: block;
+      width: 1900px;
+      height: 500px;
+      border: 5px solid #ffff00;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="input-container">
+    <input type="text" id="textInput" placeholder="输入要显示的文字">
+    <button id="confirmBtn">确定</button>
+  </div>
+  <canvas id="myCanvas"></canvas>
+</body>
+<script>
+  const canvas = document.getElementById('myCanvas');
+  const ctx = canvas.getContext('2d');
+  const textInput = document.getElementById('textInput');
+
+  let currentText = '';
+  let animationTimeout = null;
+  let isAnimating = false;
+  let animationQueue = [];
+
+  function resizeCanvas() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 500;
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+  img.src = 'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg';
+
+  let imageLoaded = false;
+  img.onload = function () {
+    imageLoaded = true;
+    startAnimation(null, false);
+  };
+
+  function getTextPoints(text) {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+
+    tempCtx.fillStyle = 'white';
+    tempCtx.textBaseline = 'middle';
+    tempCtx.textAlign = 'left';
+
+    let fontSize = Math.min(tempCanvas.height * 0.8, tempCanvas.width / (text.length * 1.5));
+    tempCtx.font = `bold ${fontSize}px Arial`;
+
+    let totalWidth = 0;
+    const letterSpacing = fontSize * 0.5;
+    const letterPositions = [];
+
+    for (let i = 0; i < text.length; i++) {
+      const letterWidth = tempCtx.measureText(text[i]).width;
+      letterPositions.push({
+        letter: text[i],
+        x: totalWidth,
+        width: letterWidth
+      });
+      totalWidth += letterWidth + letterSpacing;
+    }
+
+    const startX = (tempCanvas.width - (totalWidth - letterSpacing)) / 2;
+
+    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+    letterPositions.forEach(pos => {
+      tempCtx.fillText(pos.letter, startX + pos.x, tempCanvas.height / 2);
+    });
+
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const points = [];
+    const cellSize = 15;
+
+    for (let y = 0; y < tempCanvas.height; y += cellSize) {
+      for (let x = 0; x < tempCanvas.width; x += cellSize) {
+        let hasPixel = false;
+        for (let dy = 0; dy < cellSize && y + dy < tempCanvas.height; dy++) {
+          for (let dx = 0; dx < cellSize && x + dx < tempCanvas.width; dx++) {
+            const index = ((y + dy) * tempCanvas.width + (x + dx)) * 4;
+            if (imageData.data[index] > 50) {
+              hasPixel = true;
+              break;
+            }
+          }
+          if (hasPixel) break;
+        }
+
+        if (hasPixel) {
+          points.push({
+            x: x,
+            y: y,
+            width: cellSize,
+            height: cellSize
+          });
+        }
+      }
+    }
+
+    if (false) {
+      document.body.appendChild(tempCanvas);
+      const ctx = tempCanvas.getContext('2d');
+      points.forEach(point => {
+        ctx.strokeStyle = 'red';
+        ctx.strokeRect(point.x, point.y, point.width, point.height);
+      });
+    }
+
+    return points;
+  }
+
+  let currentAnimation = null;
+
+  function createGridLayout() {
+    const rows = 6;
+    const cols = 26;
+    const cells = [];
+
+    const cellWidth = canvas.width / cols;
+    const cellHeight = canvas.height / rows;
+
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const startPositions = [
+          { x: -50, y: -50 },
+          { x: canvas.width + 50, y: -50 },
+          { x: -50, y: canvas.height + 50 },
+          { x: canvas.width + 50, y: canvas.height + 50 }
+        ];
+        const randomStart = startPositions[Math.floor(Math.random() * 4)];
+
+        cells.push({
+          targetX: j * cellWidth,
+          targetY: i * cellHeight,
+          width: cellWidth,
+          height: cellHeight,
+          currentX: randomStart.x,
+          currentY: randomStart.y,
+          delay: Math.random() * 1000,
+          startTime: null
+        });
+      }
+    }
+
+    return cells;
+  }
+
+  function startAnimation(text = null, isTransition = false) {
+    if (!imageLoaded) {
+      console.log('Image not loaded yet');
+      return;
+    }
+
+    const previousCells = currentAnimation ? currentAnimation.cells.map(cell => ({
+      ...cell,
+      lastX: cell.currentX,
+      lastY: cell.currentY
+    })) : [];
+
+    let cells = [];
+    let targetCells = [];
+
+    if (text === null) {
+      targetCells = createGridLayout();
+    } else {
+      const points = getTextPoints(text);
+      if (points.length < 10) {
+        targetCells = createGridLayout();
+      } else {
+        targetCells = points.map(point => ({
+          targetX: point.x,
+          targetY: point.y,
+          width: point.width,
+          height: point.height
+        }));
+      }
+    }
+
+    const maxCells = Math.max(previousCells.length, targetCells.length);
+
+    for (let i = 0; i < maxCells; i++) {
+      if (i < targetCells.length) {
+        const target = targetCells[i];
+        const previous = i < previousCells.length ? previousCells[i] : null;
+
+        const startY = previous ? previous.lastY : -50;
+        const startX = previous ? previous.lastX : target.targetX;
+
+        cells.push({
+          targetX: target.targetX,
+          targetY: target.targetY,
+          width: target.width,
+          height: target.height,
+          currentX: startX,
+          currentY: startY,
+          delay: isTransition ? 0 : Math.random() * 500,
+          startTime: null,
+          opacity: 1
+        });
+      } else {
+        const previous = previousCells[i];
+        cells.push({
+          targetX: previous.lastX,
+          targetY: -100,
+          width: previous.width,
+          height: previous.height,
+          currentX: previous.lastX,
+          currentY: previous.lastY,
+          delay: 0,
+          startTime: null,
+          opacity: 0
+        });
+      }
+    }
+
+    const animationDuration = 800;
+
+    function animate(timestamp) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let needsMore = false;
+
+      cells.forEach(cell => {
+        if (!cell.startTime && timestamp >= cell.delay) {
+          cell.startTime = timestamp;
+        }
+
+        if (cell.startTime) {
+          const progress = Math.min((timestamp - cell.startTime) / animationDuration, 1);
+          const easeProgress = 1 - Math.pow(1 - progress, 3);
+
+          cell.currentX = cell.currentX + (cell.targetX - cell.currentX) * easeProgress;
+          cell.currentY = cell.currentY + (cell.targetY - cell.currentY) * easeProgress;
+
+          ctx.globalAlpha = cell.opacity === 0 ? 1 - easeProgress : 1;
+
+          ctx.drawImage(
+            img,
+            cell.currentX,
+            cell.currentY,
+            cell.width,
+            cell.height
+          );
+
+          if (progress < 1) {
+            needsMore = true;
+          }
+        } else {
+          needsMore = true;
+        }
+      });
+
+      ctx.globalAlpha = 1;
+
+      if (needsMore) {
+        currentAnimation = { cells, animate };
+        requestAnimationFrame(animate);
+      } else {
+        currentAnimation = null;
+      }
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  // 修改输入事件监听
+  textInput.addEventListener('input', (e) => {
+    const value = e.target.value.trim().toUpperCase();
+
+    // 如果删除了文字，立即返回网格布局
+    if (!value) {
+      currentText = '';
+      clearAnimationQueue();
+      startAnimation(null, true);
+      return;
+    }
+
+    // 将新的动画添加到队列
+    if (value !== currentText) {
+      currentText = value;
+      queueAnimation(value);
+    }
+  });
+
+  // 添加动画队列处理函数
+  function clearAnimationQueue() {
+    animationQueue = [];
+    if (animationTimeout) {
+      clearTimeout(animationTimeout);
+      animationTimeout = null;
+    }
+    isAnimating = false;
+  }
+
+  function queueAnimation(text) {
+    // 清除当前队列中的动画
+    clearAnimationQueue();
+
+    // 创建新的动画序列
+    for (let i = 1; i <= text.length; i++) {
+      animationQueue.push(text.substring(0, i));
+    }
+
+    // 如果没有动画在运行，开始执行
+    if (!isAnimating) {
+      processNextAnimation();
+    }
+  }
+
+  function processNextAnimation() {
+    if (animationQueue.length === 0) {
+      isAnimating = false;
+      return;
+    }
+
+    isAnimating = true;
+    const text = animationQueue.shift();
+
+    // 开始新的动画
+    startAnimation(text, true);
+
+    // 设置下一个动画
+    animationTimeout = setTimeout(() => {
+      processNextAnimation();
+    }, 200); // 动画间隔时间
+  }
+
+  // 修改确认按钮事件
+  const confirmBtn = document.getElementById('confirmBtn');
+
+  confirmBtn.addEventListener('click', () => {
+    clearAnimationQueue();
+
+    const value = textInput.value.trim().toUpperCase();
+    if (value && imageLoaded) {
+      currentText = value;
+      startAnimation(value, true);
+    } else {
+      currentText = '';
+      startAnimation(null, true);
+    }
+  });
+
+  // 修改回车键事件
+  textInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      clearAnimationQueue();
+
+      const value = e.target.value.trim().toUpperCase();
+      if (value && imageLoaded) {
+        currentText = value;
+        startAnimation(value, true);
+      } else {
+        currentText = '';
+        startAnimation(null, true);
+      }
+    }
+  });
+
+
+
+
+</script>
+
+</html>

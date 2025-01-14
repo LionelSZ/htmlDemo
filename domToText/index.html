@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Letters</title>
+  <style>
+    canvas {
+      width: 1920px;
+      height: 500px;
+      border: 2px red solid;
+      cursor: move;
+    }
+  </style>
+</head>
+
+<body>
+  <input type="text" id="textInput" placeholder="输入文字">
+  <button onclick="startAnimation()">显示</button>
+  <canvas id="canvas" width="1920" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let offsetX = 40;
+    let offsetY = 100;
+    let scale = 1;
+
+    // 添加动画相关变量
+    let isAnimating = false;
+    let animationProgress = 0;
+    let gridBlocks = [];
+    let targetPositions = [];
+    const ANIMATION_DURATION = 1500; // 动画持续时间（毫秒）
+    let animationStartTime;
+
+    canvas.addEventListener('wheel', handleWheel);
+    canvas.addEventListener('mousedown', startDragging);
+    canvas.addEventListener('mousemove', drag);
+    canvas.addEventListener('mouseup', stopDragging);
+    canvas.addEventListener('mouseleave', stopDragging);
+
+    // 修改初始化网格函数，使图片块完全填满画布
+    function initGrid() {
+      const blockSize = 25;
+      const margin = 0;
+      const cols = Math.ceil(canvas.width / blockSize); // 使用ceil确保完全覆盖
+      const rows = Math.ceil(canvas.height / blockSize);
+
+      gridBlocks = [];
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          gridBlocks.push({
+            x: x * blockSize,
+            y: y * blockSize,
+            originalX: x * blockSize,
+            originalY: y * blockSize
+          });
+        }
+      }
+    }
+
+    function handleWheel(e) {
+      if (isAnimating) return;
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY);
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const oldScale = scale;
+      scale = Math.max(0, Math.min(3.0, scale * (1 - delta * 0.1)));
+
+      offsetX = mouseX - (mouseX - offsetX) * (scale / oldScale);
+      offsetY = mouseY - (mouseY - offsetY) * (scale / oldScale);
+
+      renderText();
+    }
+
+    function startDragging(e) {
+      if (isAnimating) return;
+      isDragging = true;
+      startX = e.clientX - offsetX;
+      startY = e.clientY - offsetY;
+    }
+
+    function drag(e) {
+      if (!isDragging || isAnimating) return;
+      offsetX = e.clientX - startX;
+      offsetY = e.clientY - startY;
+      renderText();
+    }
+
+    function stopDragging() {
+      isDragging = false;
+    }
+
+    function getLetterPattern(char) {
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      const size = 150;
+      tempCanvas.width = size;
+      tempCanvas.height = size;
+
+      tempCtx.fillStyle = 'black';
+      tempCtx.font = `bold ${size}px Arial`;
+      tempCtx.textBaseline = 'middle';
+      tempCtx.textAlign = 'center';
+      tempCtx.fillText(char, size / 2, size / 2);
+
+      const imageData = tempCtx.getImageData(0, 0, size, size);
+      const pattern = [];
+      const threshold = 25;
+      const gridSize = 15;
+
+      for (let y = 0; y < gridSize; y++) {
+        const row = [];
+        for (let x = 0; x < gridSize; x++) {
+          let sum = 0;
+          const sampleSize = 4;
+          const startX = Math.floor(x * (size / gridSize));
+          const startY = Math.floor(y * (size / gridSize));
+
+          for (let sy = 0; sy < sampleSize; sy++) {
+            for (let sx = 0; sx < sampleSize; sx++) {
+              const sX = startX + sx;
+              const sY = startY + sy;
+              if (sX < size && sY < size) {
+                const index = (sY * size + sX) * 4;
+                sum += imageData.data[index + 3];
+              }
+            }
+          }
+
+          const average = sum / (sampleSize * sampleSize);
+          row.push(average > threshold ? 1 : 0);
+        }
+        pattern.push(row);
+      }
+
+      return pattern;
+    }
+
+    function calculateTargetPositions() {
+      const text = document.getElementById('textInput').value.toUpperCase();
+      const blockSize = 25;
+      let xOffset = offsetX;
+      targetPositions = [];
+      let letterPositions = [];
+
+      // 收集所有文字位置
+      for (const char of text) {
+        if (char === ' ') {
+          xOffset += 4 * blockSize;
+          continue;
+        }
+
+        const letterPattern = getLetterPattern(char);
+        letterPattern.forEach((row, rowIndex) => {
+          row.forEach((block, colIndex) => {
+            if (block) {
+              letterPositions.push({
+                x: xOffset + colIndex * blockSize,
+                y: rowIndex * blockSize + offsetY
+              });
+            }
+          });
+        });
+        xOffset += (letterPattern[0].length * blockSize) + 10;
+      }
+
+      // 为每个网格块分配多个目标位置
+      const blocksPerPosition = 3;
+      gridBlocks.forEach((block, index) => {
+        const basePosition = letterPositions[Math.floor(index / blocksPerPosition) % letterPositions.length];
+        // 减小随机偏移量
+        const randomOffset = {
+          x: Math.random() * 2 - 1,
+          y: Math.random() * 2 - 1
+        };
+        targetPositions.push({
+          x: basePosition.x + randomOffset.x,
+          y: basePosition.y + randomOffset.y,
+          rotation: Math.random() * 720 - 360,
+          scale: 0.95 + Math.random() * 0.1
+        });
+      });
+    }
+
+    function startAnimation() {
+      isAnimating = true;
+      animationProgress = 0;
+      animationStartTime = Date.now();
+      calculateTargetPositions();
+      requestAnimationFrame(animate);
+    }
+
+    function animate() {
+      const currentTime = Date.now();
+      animationProgress = (currentTime - animationStartTime) / ANIMATION_DURATION;
+
+      if (animationProgress >= 1) {
+        isAnimating = false;
+        return;
+      }
+
+      const easing = t => {
+        return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+      };
+      const easedProgress = easing(animationProgress);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const blockSize = 25;
+
+      // 按照 y 坐标排序，使叠加效果更自然
+      const sortedBlocks = [...gridBlocks].sort((a, b) => {
+        const targetA = targetPositions[gridBlocks.indexOf(a)];
+        const targetB = targetPositions[gridBlocks.indexOf(b)];
+        return targetA.y - targetB.y;
+      });
+
+      sortedBlocks.forEach((block, index) => {
+        const originalIndex = gridBlocks.indexOf(block);
+        const target = targetPositions[originalIndex];
+        const currentX = block.originalX + (target.x - block.originalX) * easedProgress;
+        const currentY = block.originalY + (target.y - block.originalY) * easedProgress;
+        const rotation = target.rotation * (1 - Math.min(1, easedProgress * 1.2));
+        const scale = 1 + (target.scale - 1) * (1 - Math.min(1, easedProgress * 1.2));
+
+        if (cachedImg) {
+          ctx.save();
+          ctx.translate(currentX + blockSize / 2, currentY + blockSize / 2);
+          ctx.rotate(rotation * Math.PI / 180);
+          ctx.scale(scale, scale);
+          ctx.drawImage(
+            cachedImg,
+            0, 0, cachedImg.width, cachedImg.height,
+            -blockSize / 2, -blockSize / 2,
+            blockSize, blockSize
+          );
+          ctx.restore();
+        }
+      });
+
+      if (animationProgress < 1) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    let cachedImg = null;
+
+    function renderText() {
+      if (isAnimating) return;
+      const text = document.getElementById('textInput').value.toUpperCase();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const baseBlockSize = 25;
+      const blockSize = baseBlockSize * scale;
+      const margin = 0;
+      let xOffset = offsetX;
+
+      function render() {
+        for (const char of text) {
+          if (char === ' ') {
+            xOffset += 4 * blockSize;
+            continue;
+          }
+
+          const letterPattern = getLetterPattern(char);
+          letterPattern.forEach((row, rowIndex) => {
+            row.forEach((block, colIndex) => {
+              if (block) {
+                ctx.drawImage(
+                  cachedImg,
+                  0, 0, cachedImg.width, cachedImg.height,
+                  xOffset + colIndex * blockSize,
+                  rowIndex * blockSize + offsetY,
+                  blockSize,
+                  blockSize
+                );
+              }
+            });
+          });
+          xOffset += (letterPattern[0].length * blockSize) + 10 * scale;
+        }
+      }
+
+      if (cachedImg) {
+        render();
+      } else {
+        const img = new Image();
+        img.src = 'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg';
+        img.onload = function () {
+          cachedImg = img;
+          render();
+          initGrid();
+        };
+      }
+    }
+
+    // 修改window.onload函数，只初始化网格并渲染图片块
+    window.onload = function () {
+      document.getElementById('textInput').value = ''; // 清空输入框
+      const img = new Image();
+      img.src = 'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg';
+      img.onload = function () {
+        cachedImg = img;
+        initGrid();
+        // 渲染满屏的图片块
+        const blockSize = 25;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        gridBlocks.forEach(block => {
+          ctx.drawImage(
+            cachedImg,
+            0, 0, cachedImg.width, cachedImg.height,
+            block.x, block.y,
+            blockSize, blockSize
+          );
+        });
+      };
+    };
+  </script>
+</body>
+
+</html>

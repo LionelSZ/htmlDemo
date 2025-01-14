@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>裁剪canvas图片</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin: 0 auto;
+      width: 900px;
+    }
+
+    #myCanvas {
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      margin: 0 auto;
+      display: block;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 1;
+    }
+
+    canvas {
+      outline: none;
+    }
+
+    #canvasLayer {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 2;
+      pointer-events: auto;
+    }
+
+    .btn-group {
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    button {
+      margin: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      background: #4CAF50;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    #previewImg {
+      position: fixed;
+      right: 20px;
+      top: 20px;
+      z-index: 3;
+      width: 200px;
+      height: 150px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      object-fit: contain;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 4px;
+    }
+
+    .preview {
+      position: relative;
+    }
+  </style>
+  <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+
+  <script>
+    class DrawArea {
+      constructor(canvas, ctx) {
+        this.canvas = canvas;
+        this.ctx = ctx;
+        this.rect = {
+          start: { x: 0, y: 0 },
+          end: { x: 0, y: 0 },
+          drawing: false
+        };
+        // 绑定事件处理函数,避免this指向问题
+        this.mousedownHandler = this.mousedownFun.bind(this);
+        this.mousemoveHandler = this.mousemoveFun.bind(this);
+        this.mouseupHandler = this.mouseupFun.bind(this);
+      }
+
+      // 获取鼠标在canvas上的坐标,考虑滚动距离
+      getMousePos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left - window.scrollX,
+          y: e.clientY - rect.top - window.scrollY
+        };
+      }
+
+      // 绘制矩形
+      drawRectangle() {
+
+        // 清除之前的绘制内容
+        this.ctx.save();
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const width = this.rect.end.x - this.rect.start.x;
+        const height = this.rect.end.y - this.rect.start.y;
+        this.ctx.beginPath();
+
+        // 绘制时使用虚线,完成时使用实线
+        if (this.rect.drawing) {
+          this.ctx.setLineDash([5, 5]);
+          this.canvas.style.cursor = 'crosshair';
+        } else {
+          this.ctx.setLineDash([]);
+          this.canvas.style.cursor = 'default';
+        }
+        this.ctx.rect(this.rect.start.x, this.rect.start.y, width, height);
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        this.ctx.restore();
+      }
+
+      mousedownFun(e) {
+        const pos = this.getMousePos(e);
+        this.rect.start = pos;
+        this.rect.end = pos; // 初始化结束点,避免未移动时的异常
+        this.rect.drawing = true;
+      }
+
+      mousemoveFun(e) {
+        if (!this.rect.drawing) return;
+        this.rect.end = this.getMousePos(e);
+        requestAnimationFrame(() => this.drawRectangle()); // 使用requestAnimationFrame优化性能
+      }
+
+      mouseupFun(e) {
+        if (!this.rect.drawing) return;
+        this.rect.end = this.getMousePos(e);
+        this.rect.drawing = false;
+        this.drawRectangle();
+      }
+
+      openEvents() {
+        this.canvas.addEventListener('mousedown', this.mousedownHandler);
+        this.canvas.addEventListener('mousemove', this.mousemoveHandler);
+        this.canvas.addEventListener('mouseup', this.mouseupHandler);
+        // 添加鼠标离开canvas时的处理
+        // canvas 元素默认不能接收键盘事件,需要添加 tabindex 属性并设置 focus
+        this.canvas.setAttribute('tabindex', '1');
+        this.canvas.focus();
+        this.canvas.addEventListener('keydown', this.keydownHandler.bind(this));
+
+      }
+
+      closeEvents() {
+        this.canvas.removeEventListener('mousedown', this.mousedownHandler);
+        this.canvas.removeEventListener('mousemove', this.mousemoveHandler);
+        this.canvas.removeEventListener('mouseup', this.mouseupHandler);
+        // this.canvas.removeEventListener('mouseleave', this.mouseupHandler);
+      }
+      clearRect() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      }
+
+      keydownHandler(e) {
+        if (e.key === 'Escape') {
+          this.clearRect()
+        }
+      }
+    }
+
+    class CanvasLayer {
+      constructor(canvas) {
+        // 创建一个临时图层用于交互绘制
+        this.layer = document.createElement('canvas');
+        this.layer.id = 'canvasLayer';
+
+        // 设置临时图层尺寸与主画布一致
+        const { width, height } = canvas;
+        this.layer.width = width;
+        this.layer.height = height;
+
+        // 启用透明通道
+        this.ctx = this.layer.getContext('2d', { alpha: true });
+
+        // 设置临时图层样式和定位
+        Object.assign(this.layer.style, {
+          left: `${canvas.offsetLeft}px`,
+          top: `${canvas.offsetTop}px`,
+          zIndex: '9999',
+          pointerEvents: 'auto' // 确保可以接收鼠标事件
+        });
+      }
+    }
+
+  </script>
+
+  <script>
+    window.onload = () => {
+      const canvas = document.getElementById('myCanvas');
+      const ctx = canvas.getContext('2d');
+
+
+      const layerInstance = new CanvasLayer(canvas);
+      const tempLayer = layerInstance.layer;
+      const tempCtx = layerInstance.ctx;
+
+      // 将临时图层添加到DOM中
+      // 应该插入到canvas的后面作为兄弟元素
+      canvas.parentNode.insertBefore(tempLayer, canvas.nextSibling);
+
+      // 初始化绘图区域
+      const drawArea = new DrawArea(tempLayer, tempCtx);
+
+      // const drawArea = new DrawArea(canvas, ctx);
+      drawArea.openEvents();
+      setTimeout(() => {
+        // drawArea.closeEvents();
+      }, 3000);
+
+      document.querySelectorAll('.btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const funMaps = {
+            point: drawPoint,
+            line: drawLine,
+            polygon: drawPolygon,
+            rect: drawRect,
+            clear: clearCanvas,
+            screenshot: screenshot,
+            downPdf: downPdf
+          }
+          funMaps[btn.id]();
+        });
+      });
+      function drawPoint() {
+        ctx.beginPath();
+        ctx.arc(100, 100, 20, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      function drawLine() {
+        ctx.beginPath();
+        ctx.moveTo(100, 100);
+        ctx.lineTo(0, 0);
+        ctx.stroke();
+      }
+      function drawPolygon() {
+        ctx.beginPath();
+        ctx.moveTo(100, 100);
+        ctx.lineTo(200, 200);
+        ctx.lineTo(300, 100);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      drawPoint();
+      drawLine();
+      drawPolygon();
+      drawRect();
+
+
+      // 截图
+      function screenshot() {
+        // 获取选区坐标
+        const { start, end } = drawArea.rect;
+        const width = Math.abs(end.x - start.x);
+        const height = Math.abs(end.y - start.y);
+        const [x, y] = [Math.min(start.x, end.x), Math.min(start.y, end.y)];
+
+        // 从canvas截取图片
+        const imageData = ctx.getImageData(x, y, width, height);
+
+        // 创建临时canvas并设置尺寸
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // 将截取的图片数据绘制到临时canvas
+        tempCtx.putImageData(imageData, 0, 0);
+
+        // 转换为base64并预览
+        document.getElementById('previewImg').src = tempCanvas.toDataURL('image/png');
+
+
+      }
+      function downPdf() {
+        const base64 = document.getElementById('previewImg')?.getAttribute('src')
+        if (!base64) {
+          alert('请先截图');
+          return;
+        }
+        // 把图片放在pdf里面再下载
+        const pdf = new jspdf.jsPDF({
+          orientation: 'p',
+          unit: 'mm',
+          format: 'a4',
+          putOnlyUsedFonts: true,
+          floatPrecision: 16 // or "smart", default is 16
+        });
+        pdf.addImage(base64, 'PNG', 0, 0);
+        pdf.save('screenshot.pdf');
+        // 打开打印对话框
+        // pdf.output('dataurlnewwindow');
+      }
+      function drawRect() {
+        ctx.beginPath();
+        ctx.rect(100, 100, 200, 200);
+        ctx.stroke();
+      }
+    };
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <canvas id="myCanvas" width="800" height="600"></canvas>
+    <div class="btn-group">
+      <button class="btn" id="point">绘制点</button>
+      <button class="btn" id="line">绘制线</button>
+      <button class="btn" id="polygon">绘制多边形</button>
+      <button class="btn" id="rect">绘制矩形</button>
+      <button class="btn" id="clear">清除画布</button>
+      <button class="btn" id="screenshot">截图</button>
+      <button class="btn" id="downPdf">下载pdf</button>
+    </div>
+  </div>
+  <div class="preview">
+    <img id="previewImg" src="" alt="请选择截图区域"
+      style="max-width: 100%; margin-top: 20px; border-radius: 4px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); display: block; border: 1px solid #ddd; padding: 10px; background: white;">
+  </div>
+</body>
+
+</html>

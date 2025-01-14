@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #ffffff;
+        }
+
+        canvas {
+            border: 1px solid #ddd;
+            image-rendering: crisp-edges;
+            /* 或者 pixelated */
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="textCanvas" width="1000" height="200"></canvas>
+
+    <script>
+        const canvas = document.getElementById('textCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 设置文字内容和样式
+        const text = "三十而立成就梦想";
+        ctx.font = 'normal 100px Hair';
+        ctx.fillStyle = 'black';
+        ctx.textBaseline = 'top';
+
+        // 绘制文字到 Canvas
+        ctx.fillText(text, 50, 50);
+
+        // 获取文字像素数据
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // 清空 Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 多张小图片的路径
+        const images = [
+            'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg',  // 替换为实际小图片路径
+            'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg',
+            'https://images.pexels.com/photos/17742455/pexels-photo-17742455.jpeg',
+        ];
+
+        const imgWidth = 5;  // 小图片的宽高，设置为较小的值以增加填充密度
+        const imgHeight = 10; // 小图片高度
+        const stepSize = 4;  // 步长（影响填充密度）
+
+        // 加载图片并确保所有图片加载完成后再绘制
+        let loadedImages = [];
+        let loadedCount = 0;
+
+        images.forEach(src => {
+            const img = new Image();
+            img.src = src;
+            img.onload = function () {
+                loadedImages.push(img);
+                loadedCount++;
+                if (loadedCount === images.length) {
+                    drawTextWithImages();
+                }
+            };
+        });
+
+        function drawTextWithImages() {
+            // 遍历像素数据，找到文字的笔画位置并填充小图片
+            for (let y = 0; y < imageData.height; y += stepSize) {
+                for (let x = 0; x < imageData.width; x += stepSize) {
+                    const index = (y * imageData.width + x) * 4;
+                    const alpha = data[index + 3]; // 获取 alpha 通道
+
+                    // 如果像素不透明（即属于文字区域），则绘制随机的小图片
+                    if (alpha > 128) {
+                        const randomImg = loadedImages[Math.floor(Math.random() * loadedImages.length)];
+                        ctx.drawImage(randomImg, x, y, imgWidth, imgHeight);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

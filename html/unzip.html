@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>解压文件</title>
+  <script src="https://unpkg.com/fflate"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .file-input-wrapper {
+      margin-bottom: 20px;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .custom-file-input {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    .custom-file-input:hover {
+      background: #45a049;
+      transform: translateY(-2px);
+    }
+
+    button {
+      padding: 12px 24px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #1976D2;
+      transform: translateY(-2px);
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 4px;
+      background: #f8f9fa;
+      text-align: left;
+    }
+
+    .success {
+      color: #28a745;
+    }
+
+    .error {
+      color: #dc3545;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>ZIP文件解压工具</h1>
+    <div class="file-input-wrapper">
+      <label for="fileInput" class="custom-file-input">选择ZIP文件</label>
+      <input type="file" id="fileInput" accept=".zip">
+    </div>
+    <button onclick="unzipFile()">解压文件</button>
+    <button onclick="downloadZip()">下载zip</button>
+    <div id="result" class="result" style="display: none;"></div>
+  </div>
+
+  <script>
+    let zipData = {};
+    async function unzipFile() {
+      const resultDiv = document.getElementById('result');
+      try {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+
+        if (!file) {
+          throw new Error('请选择一个zip文件');
+        }
+
+        const zipData = await file.arrayBuffer();
+        const unzipped = fflate.unzipSync(new Uint8Array(zipData));
+
+        let resultHtml = '<div class="success">';
+        for (const [fileName, fileData] of Object.entries(unzipped)) {
+          const blob = new Blob([fileData], { type: 'application/octet-stream' });
+          const unzippedFile = new File([blob], fileName, { type: 'application/octet-stream' });
+          resultHtml += `<p>✓ 成功解压: ${fileName}</p>`;
+          console.log(`解压成功: ${fileName}`, unzippedFile);
+          zipData[fileName] = unzippedFile;
+        }
+        resultHtml += '</div>';
+
+        resultDiv.innerHTML = resultHtml;
+        resultDiv.style.display = 'block';
+      } catch (err) {
+        resultDiv.innerHTML = `<div class="error">❌ 解压失败: ${err.message}</div>`;
+        resultDiv.style.display = 'block';
+        console.error('解压失败:', err);
+      }
+    }
+
+    function downloadZip() {
+      alert('暂无')
+      // const zipData = fflate.zipSync({});
+      // const blob = new Blob([zipData], { type: 'application/octet-stream' });
+      // const url = URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = 'output.zip';
+      // a.click();
+    }
+    // 显示选择的文件名
+    document.getElementById('fileInput').addEventListener('change', function (e) {
+      const fileName = e.target.files[0]?.name;
+      if (fileName) {
+        document.querySelector('.custom-file-input').textContent = fileName;
+      } else {
+        document.querySelector('.custom-file-input').textContent = '选择ZIP文件';
+      }
+    });
+  </script>
+</body>
+
+</html>
