@@ -100,7 +100,7 @@
       }
 
       // 获取适用的利率档位
-      const applicableAmount = [200, 300, 500].reduce((prev, curr) =>
+      const applicableAmount = [200, 500, 1500].reduce((prev, curr) =>
         usdtAmount >= curr ? curr : prev
       );
 
@@ -150,12 +150,12 @@
       <td>9.5</td>
     </tr>
     <tr>
-      <td>300u</td>
+      <td>500u</td>
       <td>43%</td>
       <td>10.5</td>
     </tr>
     <tr>
-      <td>500u</td>
+      <td>1500u</td>
       <td>57%</td>
       <td>11.5</td>
     </tr>
