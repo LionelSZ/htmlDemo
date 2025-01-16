@@ -76,12 +76,6 @@
   </style>
   <script>
     const USDT_RATE = 7.3;
-    const INTEREST_RATES = {
-      200: { percent: 30, rate: 9.0 },
-      300: { percent: 40, rate: 10.0 },
-      500: { percent: 50, rate: 11.0 }
-    };
-
     function formatCurrency(value, currency = '¥') {
       return `${currency}${value.toFixed(2)}`;
     }
@@ -104,7 +98,7 @@
         usdtAmount >= curr ? curr : prev
       );
 
-      const rate = INTEREST_RATES[applicableAmount].rate;
+      const rate = usdtAmount >= 1500 ? 11 : usdtAmount >= 500 ? 10 : 9;
       const rmbAmount = usdtAmount * USDT_RATE;
       const profit = (rate * usdtAmount) - rmbAmount;
 
