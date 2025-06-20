@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <script>
+    class LTVectorlayer {
+      constructor(name) {
+        this._name = name;
+        this._isOff = false;
+      }
+
+      invalidate() {
+        this._name = "invalidate";
+      }
+
+      destroy() {
+        this._name = "destroy";
+      }
+
+      get off() {
+        return this._isOff;
+      }
+
+      set off(o) {
+        this._isOff = o;
+        if (this._name) {
+          this._name = "off";
+        }
+      }
+    }
+    const ltVectorLayer = new LTVectorlayer("ltVectorLayer");
+    console.log(ltVectorLayer);
+    ltVectorLayer.off = true;
+    console.log(ltVectorLayer);
+
+
+  </script>
+</head>
+
+<body>
+
+</body>
+
+</html>

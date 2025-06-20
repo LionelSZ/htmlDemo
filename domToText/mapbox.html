@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>定义 UTM 投影 (Zone 50N)</title>
+  <!-- Mapbox GL JS -->
+  <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+  <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+
+  <!-- Proj4js 用于坐标转换 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+    }
+
+    .coordinates {
+      position: absolute;
+      bottom: 25px;
+      right: 0px;
+      padding: 5px 10px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 4px;
+      font-family: Arial, sans-serif;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <div class="coordinates">坐标信息将显示在这里</div>
+
+  <script>
+    // 定义 UTM 投影 (Zone 50N)
+    var utmProjection = 'PROJCS["WGS 84 / UTM zone 50N",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",117],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH],AUTHORITY["EPSG","32650"]]';
+
+    // 注册 UTM 投影（EPSG:32650 - UTM Zone 50N）
+    proj4.defs('EPSG:32650', utmProjection);
+
+    // 设置 Mapbox 访问令牌（请替换为您自己的访问令牌）
+    mapboxgl.accessToken = 'pk.eyJ1IjoiamVmZnN0ZXJuIiwiYSI6IlAzRFFiN0EifQ.mNWvayrLEw9wULuq0sopyA';
+
+    // 初始化地图
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [117, 20], // 大致对应 UTM Zone 50N 的中心经度和一个合适的纬度
+      zoom: 5
+    });
+
+    // 获取坐标显示元素
+    const coordinatesElement = document.querySelector('.coordinates');
+
+    // 添加地图控件
+    map.addControl(new mapboxgl.NavigationControl());
+    map.addControl(new mapboxgl.FullscreenControl());
+
+    // 地图加载完成后
+    map.on('load', function () {
+      // 可以在这里添加自定义图层或数据
+
+      // 添加一个标记点作为示例
+      const marker = new mapboxgl.Marker({ color: "#FF0000" })
+        .setLngLat([117, 20])
+        .addTo(map);
+    });
+
+    // 监听鼠标移动事件，显示坐标
+    map.on('mousemove', function (e) {
+      // 获取经纬度坐标
+      const lng = e.lngLat.lng.toFixed(6);
+      const lat = e.lngLat.lat.toFixed(6);
+
+      // // 将经纬度转换为 UTM 坐标
+      const utmCoords = proj4('EPSG:4326', 'EPSG:32650', [parseFloat(lng), parseFloat(lat)]);
+
+      console.log(utmCoords);
+
+      // 更新坐标显示
+      coordinatesElement.innerHTML = `
+        经纬度: ${lng}, ${lat}<br>
+        UTM (Zone 50N): ${Math.round(utmCoords[0])}m E, ${Math.round(utmCoords[1])}m N
+      `;
+    });
+
+    // 监听点击事件
+    map.on('click', function (e) {
+      const lng = e.lngLat.lng.toFixed(6);
+      const lat = e.lngLat.lat.toFixed(6);
+      const utmCoords = proj4('EPSG:4326', 'EPSG:32650', [lng, lat]);
+
+      console.log('点击位置:');
+      console.log('经纬度:', [lng, lat]);
+      console.log('UTM 坐标:', utmCoords);
+    });
+  </script>
+</body>
+
+</html>
