@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猿聚工资账单</title>
+  <style>
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: #2c3e50;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    table,
+    th,
+    td {
+      border: 1px solid #ccc;
+    }
+
+    th,
+    td {
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f4f6f8;
+    }
+
+    .summary {
+      background-color: #fdf2e9;
+      padding: 15px;
+      margin-top: 20px;
+      border-left: 5px solid #f5b041;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        margin: 10px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 20px;
+      }
+
+      h3 {
+        font-size: 18px;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 6px 4px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>猿聚工资账单整理</h1>
+
+  <h2>📅 2023年</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>月份</th>
+        <th>状态</th>
+        <th>结算时间</th>
+        <th>金额</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1～8月</td>
+        <td>✅ 已结算</td>
+        <td>—</td>
+        <td>8w</td>
+        <td>正常结算</td>
+      </tr>
+      <tr>
+        <td>9月</td>
+        <td>✅ 已结算</td>
+        <td>2023/12/01 18:32:00</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>10月</td>
+        <td>✅ 已结算</td>
+        <td>2024/01/29 19:46:00</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>11月</td>
+        <td>✅ 已结算</td>
+        <td>2024/02/08 11:02:09</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>12月</td>
+        <td>✅ 已结算</td>
+        <td>2024/03/30 18:12:00</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>下半年剩余</td>
+        <td>❌ 未结清</td>
+        <td>—</td>
+        <td>6w</td>
+        <td>已补：2w（见下）</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>🔁 2023年补款记录</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>补款时间</th>
+        <th>金额</th>
+        <th>方式</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>2024/05/02 14:45:23</td>
+        <td>0.5w</td>
+        <td>私人银行卡</td>
+        <td>补2023下半年</td>
+      </tr>
+      <tr>
+        <td>2024/05/23 20:27:29</td>
+        <td>1w</td>
+        <td>私人银行卡</td>
+        <td>补2023下半年</td>
+      </tr>
+      <tr>
+        <td>2024/07/04 12:00:00</td>
+        <td>0.5w</td>
+        <td>微信转账</td>
+        <td>补2023下半年</td>
+      </tr>
+      <tr>
+        <td><strong>已补合计</strong></td>
+        <td><strong>2w</strong></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td><strong>尚欠</strong></td>
+        <td><strong>4w</strong></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>📅 2024年</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>月份</th>
+        <th>状态</th>
+        <th>结算时间</th>
+        <th>金额</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1月</td>
+        <td>✅ 已结算</td>
+        <td>2024/12/18 17:14:01</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>2月</td>
+        <td>✅ 已结算</td>
+        <td>2024/12/18 17:16:01</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>3月</td>
+        <td>✅ 已结算</td>
+        <td>2024/12/19 16:04:01</td>
+        <td>1w</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>4月</td>
+        <td>❌ 未结算</td>
+        <td>—</td>
+        <td>1w</td>
+        <td>尚未结算</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="summary">
+    <h3>✅ 总结</h3>
+    <p><strong>2023年应发：</strong> 14w（已发10w，已补2w，<strong>尚欠4w</strong>）</p>
+    <p><strong>2024年应发至4月：</strong> 4w（已发3w，<strong>尚欠1w</strong>）</p>
+    <p><strong>🔻 合计尚欠工资：</strong> <strong style="color:red;">5w</strong></p>
+  </div>
+
+  <iframe src="./billChart_optimized.html" width="100%" height="1080px"></iframe>
+
+</body>
+
+</html>
